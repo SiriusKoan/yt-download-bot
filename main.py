@@ -7,27 +7,33 @@ import json
 from os import system
 
 TOKEN = config.TOKEN
-yt_key = config.yt_key
+BOT_NAME = config.BOT_NAME
+YT_KEY = config.YT_KEY
 max_result = config.max_result
 cache_time = config.cache_time
+welcome_msg = """
+Welcome to use this bot!
+It can download YouTube audio for you.
+                    
+You can type `%s` in the message field to search video. Then tap on one of the result to send to the bot.
+"""%BOT_NAME
 
 bot = telebot.TeleBot(TOKEN)
 
-@bot.message_handler(commands = ['start'])
+@bot.message_handler(commands = ['start', 'help'])
 def start(message):
-    bot.reply_to(message, "Welcome to use this bot!\nIt can download YouTube audio for you.")
+    bot.reply_to(message, welcome_msg, parse_mode = 'Markdown')
 
 @bot.inline_handler(lambda query: query.query != '')
 def search_youtube(query):
     r = requests.get('https://www.googleapis.com/youtube/v3/search?'
-                    + '&key=%s'%yt_key
+                    + '&key=%s'%YT_KEY
                     + '&part=snippet'
                     + '&type=video'
                     + '&maxResults=%s'%str(max_result)
                     + '&order=relevance'
                     + '&q=%s'%query.query
                     )
-    print(r.url)
     data = json.loads(r.text)
     response = []
     for i in range(max_result):
@@ -51,7 +57,7 @@ def download(message):
         with open(filename, 'rb') as audio:
             bot.send_message(message.chat.id, 'Sending...')
             bot.send_audio(message.chat.id, audio)
-        system('rm %s'%filename)
+        system('rm "%s"'%filename)
     
 
 bot.polling()
