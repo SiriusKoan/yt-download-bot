@@ -34,26 +34,30 @@ def setting(message):
         inline_keyboard.add(types.InlineKeyboardButton(option, callback_data = option))
     bot.send_message(message.chat.id, text = 'Please select what you want to choose:', reply_markup = inline_keyboard)
 
+
 @bot.callback_query_handler(lambda query: query.data in ['set duration'])
 def receive_setting(query):
     # set which option
     chat_id = query.from_user.id
+    message_id = query.message.message_id
     inline_keyboard = types.InlineKeyboardMarkup()
     if query.data == 'set duration':
         # set duration
         options = ['any', 'short', 'medium', 'long']
         for option in options:
             inline_keyboard.add(types.InlineKeyboardButton(option, callback_data = option))
-        bot.send_message(chat_id, 'Please select the duration you want to set:', reply_markup = inline_keyboard)
+        bot.edit_message_text(chat_id = chat_id, text = 'Please select the duration you want to set:', reply_markup = inline_keyboard, message_id = message_id)
     else:
+        # for more settings
         pass
 
 @bot.callback_query_handler(lambda query: query.data in ['any', 'short', 'medium', 'long'])
 def receive_set_duration(query):
     # set duration to what
     chat_id = query.from_user.id
+    message_id = query.message.message_id
     set_duration(chat_id, query.data)
-    bot.send_message(chat_id, 'Set duration to %s.\nYou have to wait for about %s seconds since your last search.'%(query.data, str(cache_time)))
+    bot.edit_message_text(chat_id = chat_id, text = 'Set duration to *%s*.\nYou have to wait for about %s seconds since your last search.'%(query.data, str(cache_time)), message_id = message_id, parse_mode = 'Markdown')
 
 
 @bot.inline_handler(lambda query: query.query != '')
