@@ -6,6 +6,8 @@ import config
 import json
 from os import remove
 from functions import *
+import traceback
+import sys
 
 TOKEN = config.TOKEN
 BOT_NAME = config.BOT_NAME
@@ -21,12 +23,6 @@ You can type `%s ` in the message field to search video. Then tap on one of the 
 
 bot = telebot.TeleBot(TOKEN)
 
-def download(audio, message):
-    filename = audio.download()
-    with open(filename, 'rb') as audio:
-        bot.send_message(message.chat.id, 'Sending...')
-        bot.send_audio(message.chat.id, audio)
-    remove(filename)
 
 @bot.message_handler(commands = ['start', 'help'])
 def start(message):
@@ -127,6 +123,7 @@ def search_youtube(query):
     # send link
     bot.answer_inline_query(query.id, response, cache_time = cache_time)
 
+
 @bot.message_handler(func = lambda message: True)
 def check_link(message):
     link = message.text
@@ -134,19 +131,29 @@ def check_link(message):
         if 'video' in link:
             audio = pytube.YouTube(link).streams.filter(only_audio = True, file_extension = 'mp4')[0]
             bot.reply_to(message, 'You will soon receive the audio file.')
-            download(audio, message)
+            filename = audio.download()
+            with open(filename, 'rb') as audio:
+                bot.send_message(message.chat.id, 'Sending...')
+                bot.send_audio(message.chat.id, audio)
+            remove(filename)
         elif 'playlist' in link:
-            audio = []
-            playlist = pytube.Playlist(link).video_urls
-            for video_link in playlist:
-                audio.append(pytube.YouTube(video_link))
+            playlist = pytube.Playlist(link)
             inline_keyboard = types.InlineKeyboardMarkup()
-            for a in audio:
-                inline_keyboard.add(types.InlineKeyboardButton(a.title, callback_data = a.watch_url))
-            bot.send_message(message.chat.id, 'Please select the video you want to download: ', reply_markup = inline_keyboard)
-    except Exception as e:
-        print(e)
+            for i, audio in enumerate(playlist):
+                inline_keyboard.add(types.InlineKeyboardButton(i + 1, callback_data = audio))
+            bot.send_message(message.chat.id, 'Please select the video in %s you want to download: '%playlist.title(), reply_markup = inline_keyboard)
+    except:
         bot.send_message(message.chat.id, 'Invaild link...')
+
+@bot.callback_query_handler(lambda query: 'https://' in query.data)
+def receive_video_in_playlist(query):
+    chat_id = query.from_user.id
+    audio = pytube.YouTube(query.data).streams.filter(only_audio = True, file_extension = 'mp4')[0]
+    filename = audio.download()
+    with open(filename, 'rb') as audio:
+        bot.send_message(chat_id, 'Sending...')
+        bot.send_audio(chat_id, audio)
+    remove(filename)
     
 
 bot.polling()
