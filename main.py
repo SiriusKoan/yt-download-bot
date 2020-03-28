@@ -99,7 +99,7 @@ def search_youtube(query):
             title = data['items'][i]['snippet']['title']
             link = types.InputTextMessageContent('https://www.youtube.com/watch?v=' + data['items'][i]['id']['videoId'])
             avatar = data['items'][i]['snippet']['thumbnails']['medium']['url']
-            channel_name = data['items'][i]['channelTitle']
+            channel_name = data['items'][i]['snippet']['channelTitle']
             ans = types.InlineQueryResultArticle(i, title, link, thumb_url = avatar, description = channel_name)
             response.append(ans)
     else:
