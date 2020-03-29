@@ -45,7 +45,6 @@ def receive_setting(query):
     chat_id = query.from_user.id
     message_id = query.message.message_id
     inline_keyboard = types.InlineKeyboardMarkup()
-    print(query.data)
     if query.data == 'set duration':
         # set duration
         options = ['any', 'short', 'medium', 'long']
@@ -74,7 +73,6 @@ def receive_set_search(query):
     set_search_for(chat_id, query.data)
     message_id = query.message.message_id
     bot.edit_message_text(chat_id = chat_id, text = 'Set search to *%s*.\nYou have to wait for about %s seconds since your last search.'%(query.data, str(cache_time)), message_id = message_id, parse_mode = 'Markdown')
-
 
 
 # inline query to search
@@ -139,8 +137,12 @@ def check_link(message):
         elif 'playlist' in link:
             playlist = pytube.Playlist(link)
             inline_keyboard = types.InlineKeyboardMarkup()
+            button = []
             for i, audio in enumerate(playlist):
-                inline_keyboard.add(types.InlineKeyboardButton(i + 1, callback_data = audio))
+                button.append(types.InlineKeyboardButton(i + 1, callback_data = audio))
+            for i in range(0, len(button), 5):
+                inline_keyboard.row(*button[i:i + 5])
+            inline_keyboard.row(types.InlineKeyboardButton('complete', callback_data = 'playlist_download_complete'))
             bot.send_message(message.chat.id, 'Please select the video in %s you want to download: '%playlist.title(), reply_markup = inline_keyboard)
     except:
         bot.send_message(message.chat.id, 'Invaild link...')
@@ -154,6 +156,12 @@ def receive_video_in_playlist(query):
         bot.send_message(chat_id, 'Sending...')
         bot.send_audio(chat_id, audio)
     remove(filename)
+
+@bot.callback_query_handler(lambda query: query.data == 'playlist_download_complete')
+def receive_playlist_download_complete(query):
+    chat_id = query.from_user.id
+    message_id = query.message.message_id
+    bot.delete_message(chat_id, message_id)
     
 
 bot.polling()
