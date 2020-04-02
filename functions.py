@@ -1,5 +1,8 @@
 import sqlite3 as sql
 
+class FileTooLarge(Exception):
+    pass
+
 def user_exists(chat_id):
     con = sql.connect('data.db')
     cur = con.cursor()

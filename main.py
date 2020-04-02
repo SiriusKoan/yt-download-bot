@@ -126,8 +126,10 @@ def search_youtube(query):
 def check_link(message):
     link = message.text
     try:
-        if 'video' in link:
+        if 'watch' in link or 'youtu.be' in link:
             audio = pytube.YouTube(link).streams.filter(only_audio = True, file_extension = 'mp4')[0]
+            if audio.filesize > 50000000:
+                raise FileTooLarge
             bot.reply_to(message, 'You will soon receive the audio file.')
             filename = audio.download()
             with open(filename, 'rb') as audio:
@@ -144,8 +146,10 @@ def check_link(message):
                 inline_keyboard.row(*button[i:i + 5])
             inline_keyboard.row(types.InlineKeyboardButton('complete', callback_data = 'playlist_download_complete'))
             bot.send_message(message.chat.id, 'Please select the video in %s you want to download: '%playlist.title(), reply_markup = inline_keyboard)
+    except FileTooLarge:
+        bot.send_message(message.chat.id, 'The audio file is too large to send.')
     except:
-        bot.send_message(message.chat.id, 'Invaild link...')
+        bot.send_message(message.chat.id, 'Invaild link.')
 
 @bot.callback_query_handler(lambda query: 'https://' in query.data)
 def receive_video_in_playlist(query):
