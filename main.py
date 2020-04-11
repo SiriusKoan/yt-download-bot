@@ -11,6 +11,7 @@ import sys
 
 TOKEN = config.TOKEN
 BOT_NAME = config.BOT_NAME
+CHANNEL_ID = config.CHANNEL_ID
 YT_KEY = config.YT_KEY
 max_result = config.max_result
 cache_time = config.cache_time
@@ -133,8 +134,8 @@ def check_link(message):
             bot.reply_to(message, 'You will soon receive the audio file.')
             filename = audio.download()
             with open(filename, 'rb') as audio:
-                bot.send_message(message.chat.id, 'Sending...')
-                bot.send_audio(message.chat.id, audio)
+                message_id = bot.send_audio(message.chat.id, audio).message_id
+                bot.forward_message(CHANNEL_ID, message.chat.id, message_id)
             remove(filename)
         elif 'playlist' in link:
             playlist = pytube.Playlist(link)
@@ -157,8 +158,8 @@ def receive_video_in_playlist(query):
     audio = pytube.YouTube(query.data).streams.filter(only_audio = True, file_extension = 'mp4')[0]
     filename = audio.download()
     with open(filename, 'rb') as audio:
-        bot.send_message(chat_id, 'Sending...')
-        bot.send_audio(chat_id, audio)
+        message_id = bot.send_audio(message.chat.id, audio).message_id
+        bot.forward_message(CHANNEL_ID, message.chat.id, message_id)
     remove(filename)
 
 @bot.callback_query_handler(lambda query: query.data == 'playlist_download_complete')
