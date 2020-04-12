@@ -33,14 +33,14 @@ def start(message):
 @bot.message_handler(commands = ['setting'])
 def setting(message):
     inline_keyboard = types.InlineKeyboardMarkup()
-    options = ['set duration', 'search for']
+    options = ['set duration', 'search for', 'forward']
     for option in options:
         inline_keyboard.add(types.InlineKeyboardButton(option, callback_data = option))
     bot.send_message(message.chat.id, text = 'Please select what you want to choose:', reply_markup = inline_keyboard)
 
 
 # receive setting
-@bot.callback_query_handler(lambda query: query.data in ['set duration', 'search for'])
+@bot.callback_query_handler(lambda query: query.data in ['set duration', 'search for', 'forward'])
 def receive_setting(query):
     # set which option
     chat_id = query.from_user.id
@@ -58,6 +58,12 @@ def receive_setting(query):
         for option in options:
             inline_keyboard.add(types.InlineKeyboardButton(option, callback_data = option))
         bot.edit_message_text(chat_id = chat_id, text = 'Please select what you want to search: ', reply_markup = inline_keyboard, message_id = message_id)
+    elif query.data == 'forward':
+        # set whether forward the audio to channel
+        options = ['YES', 'NO']
+        for option in options:
+            inline_keyboard.add(types.InlineKeyboardButton(option, callback_data = option))
+        bot.edit_message_text(chat_id = chat_id, text = 'Whether you want to forward the audio to channel:', reply_markup = inline_keyboard, message_id = message_id)
 
 @bot.callback_query_handler(lambda query: query.data in ['any', 'short', 'medium', 'long'])
 def receive_set_duration(query):
@@ -75,6 +81,13 @@ def receive_set_search(query):
     message_id = query.message.message_id
     bot.edit_message_text(chat_id = chat_id, text = 'Set search to *%s*.\nYou have to wait for about %s seconds since your last search.'%(query.data, str(cache_time)), message_id = message_id, parse_mode = 'Markdown')
 
+@bot.callback_query_handler(lambda query: query.data in ['YES', 'NO'])
+def receive_whether_forward(query):
+    # set whether forward to channel
+    chat_id = query.from_user.id
+    set_forward(chat_id, query.data)
+    message_id = query.message.message_id
+    bot.edit_message_text(chat_id = chat_id, text = 'Set whether forward audio to channel: *%s*'%query.data, message_id = message_id, parse_mode = 'Markdown')
 
 # inline query to search
 @bot.inline_handler(lambda query: query.query != '')
@@ -135,7 +148,8 @@ def check_link(message):
             filename = audio.download()
             with open(filename, 'rb') as audio:
                 message_id = bot.send_audio(message.chat.id, audio).message_id
-                bot.forward_message(CHANNEL_ID, message.chat.id, message_id)
+                if get_forward(message.chat.id):
+                    bot.forward_message(CHANNEL_ID, message.chat.id, message_id)
             remove(filename)
         elif 'playlist' in link:
             playlist = pytube.Playlist(link)
@@ -149,7 +163,8 @@ def check_link(message):
             bot.send_message(message.chat.id, 'Please select the video in %s you want to download: '%playlist.title(), reply_markup = inline_keyboard)
     except FileTooLarge:
         bot.send_message(message.chat.id, 'The audio file is too large to send.')
-    except:
+    except Exception as e:
+        print(e)
         bot.send_message(message.chat.id, 'Invaild link.')
 
 @bot.callback_query_handler(lambda query: 'https://' in query.data)
@@ -158,8 +173,9 @@ def receive_video_in_playlist(query):
     audio = pytube.YouTube(query.data).streams.filter(only_audio = True, file_extension = 'mp4')[0]
     filename = audio.download()
     with open(filename, 'rb') as audio:
-        message_id = bot.send_audio(message.chat.id, audio).message_id
-        bot.forward_message(CHANNEL_ID, message.chat.id, message_id)
+        message_id = bot.send_audio(chat_id, audio).message_id
+        if get_forward(chat_id):
+            bot.forward_message(CHANNEL_ID, chat_id, message_id)
     remove(filename)
 
 @bot.callback_query_handler(lambda query: query.data == 'playlist_download_complete')

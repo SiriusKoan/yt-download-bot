@@ -62,3 +62,23 @@ def get_search_for(chat_id):
     data = cur.fetchall()
     con.close()
     return data[0][0]
+
+
+def set_forward(chat_id, forward):
+    if not user_exists(chat_id):
+        add_user_record(chat_id)
+    con = sql.connect('data.db')
+    cur = con.cursor()
+    cur.execute('UPDATE users SET forward = ? WHERE chat_id = ?', (forward, chat_id))
+    con.commit()
+    con.close()
+
+def get_forward(chat_id):
+    con = sql.connect('data.db')
+    cur = con.cursor()
+    cur.execute('SELECT forward FROM users WHERE chat_id = ?', (chat_id,))
+    forward = cur.fetchall()
+    con.close()
+    if forward[0][0] == 'YES':
+        return True
+    return False
