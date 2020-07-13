@@ -2,8 +2,6 @@
 TOKEN = ''
 # bot's name
 BOT_NAME = ''
-# forward audio file to channel
-CHANNEL_ID = 
 
 # your youtube API key
 YT_KEY = ''

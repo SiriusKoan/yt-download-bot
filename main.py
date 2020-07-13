@@ -11,7 +11,6 @@ import sys
 
 TOKEN = config.TOKEN
 BOT_NAME = config.BOT_NAME
-CHANNEL_ID = config.CHANNEL_ID
 YT_KEY = config.YT_KEY
 max_result = config.max_result
 cache_time = config.cache_time
@@ -87,7 +86,7 @@ def receive_whether_forward(query):
     chat_id = query.from_user.id
     set_forward(chat_id, query.data)
     message_id = query.message.message_id
-    bot.edit_message_text(chat_id = chat_id, text = 'Set whether forward audio to channel: *%s*'%query.data, message_id = message_id, parse_mode = 'Markdown')
+    bot.edit_message_text(chat_id = chat_id, text = 'Send to channel: *%s*'%query.data, message_id = message_id, parse_mode = 'Markdown')
 
 # inline query to search
 @bot.inline_handler(lambda query: query.query != '')
@@ -138,6 +137,12 @@ def search_youtube(query):
 
 @bot.message_handler(func = lambda message: True)
 def check_link(message):
+    chat_id = message.chat.id
+    if message.text[0] == '@':
+        set_forward(chat_id, message.text)
+        bot.send_message(chat_id, 'Send audio to %s'%message.text)
+        return
+
     link = message.text
     try:
         if 'watch' in link or 'youtu.be' in link:
@@ -148,8 +153,9 @@ def check_link(message):
             filename = audio.download()
             with open(filename, 'rb') as audio:
                 message_id = bot.send_audio(message.chat.id, audio).message_id
-                if get_forward(message.chat.id):
-                    bot.forward_message(CHANNEL_ID, message.chat.id, message_id)
+                forward = get_forward(message.chat.id)
+                if forward:
+                    bot.forward_message(forward, message.chat.id, message_id)
             remove(filename)
         elif 'playlist' in link:
             playlist = pytube.Playlist(link)
@@ -174,8 +180,9 @@ def receive_video_in_playlist(query):
     filename = audio.download()
     with open(filename, 'rb') as audio:
         message_id = bot.send_audio(chat_id, audio).message_id
-        if get_forward(chat_id):
-            bot.forward_message(CHANNEL_ID, chat_id, message_id)
+        forward = get_forward(chat_id)
+        if forward:
+            bot.forward_message(forward, chat_id, message_id)
     remove(filename)
 
 @bot.callback_query_handler(lambda query: query.data == 'playlist_download_complete')
