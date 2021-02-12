@@ -1,19 +1,14 @@
 import telebot
 from telebot import types
 import pytube
-import requests
 import config
 import json
-from os import remove
+from os import remove, rename
 from functions import *
-import traceback
-import sys
+from moviepy.editor import AudioFileClip
 
 TOKEN = config.TOKEN
 BOT_NAME = config.BOT_NAME
-YT_KEY = config.YT_KEY
-max_result = config.max_result
-cache_time = config.cache_time
 welcome_msg = """
 Welcome to use this bot!
 It can download YouTube audio for you.
@@ -79,6 +74,7 @@ def receive_whether_forward(query):
 
 @bot.message_handler(func=lambda message: True)
 def check_link(message):
+    # TODO modify forward setting
     chat_id = message.chat.id
     if message.text[0] == "@":
         set_forward(chat_id, message.text)
@@ -89,68 +85,42 @@ def check_link(message):
     try:
         if "watch" in link or "youtu.be" in link:
             audio_origin = pytube.YouTube(link)
-            thumbnails = requests.get(audio_origin.thumbnail_url).content
-            thumbnails = open("c.jpeg", "rb")
-            audio = audio_origin.streams.filter(only_audio=True, file_extension="mp4")[
-                0
-            ]
-            if audio.filesize > 50000000:
-                raise FileTooLarge
+            audio = audio_origin.streams.filter(only_audio=True, file_extension="mp4")[0]
             bot.reply_to(message, "You will soon receive the audio file.")
             filename = audio.download()
-            with open(filename, "rb") as audio:
-                message_id = bot.send_audio(
-                    message.chat.id, audio, thumb=thumbnails
-                ).message_id
-                forward = get_forward(message.chat.id)
+            
+            if audio.filesize > 50000000:
+                bot.send_message(chat_id, "The file is too large so that it will be divided into many files.")
+                divide = (audio.filesize // 50000000) + 1
+                audio_file = AudioFileClip(filename)
+                per_duration = audio_file.duration / divide
+                media_group = []
+                for i in range(divide):
+                    clip = audio_file.subclip(per_duration*i, per_duration*(i+1))
+                    sub_filename = filename + '_' + str(i)
+                    clip.write_audiofile(sub_filename)
+                    audio_clip = open(sub_filename, "rb")
+                    media_group.append(audio_clip)
+                    
+                message_id = bot.send_media_group(chat_id, [types.InputMediaAudio(audio_clip) for audio_clip in media_group])
+                forward = get_forward(chat_id)
                 if forward:
-                    bot.forward_message(forward, message.chat.id, message_id)
-            remove(filename)
-        elif "playlist" in link:
-            playlist = pytube.Playlist(link)
-            inline_keyboard = types.InlineKeyboardMarkup()
-            button = []
-            for i, audio in enumerate(playlist):
-                button.append(types.InlineKeyboardButton(i + 1, callback_data=audio))
-            for i in range(0, len(button), 5):
-                inline_keyboard.row(*button[i : i + 5])
-            inline_keyboard.row(
-                types.InlineKeyboardButton(
-                    "complete", callback_data="playlist_download_complete"
-                )
-            )
-            bot.send_message(
-                message.chat.id,
-                "Please select the video in %s you want to download: "
-                % playlist.title(),
-                reply_markup=inline_keyboard,
-            )
-    except FileTooLarge:
-        bot.send_message(message.chat.id, "The audio file is too large to send.")
-    except Exception as e:
-        print(e)
-        bot.send_message(message.chat.id, "Invaild link.")
+                    bot.forward_message(forward, chat_id, message_id)
+                for f in media_group:
+                    f.close()
+                    remove(f.name)
+            else:
+                with open(filename, "rb") as audio:
+                    message_id = bot.send_audio(chat_id, audio).message_id
+                    forward = get_forward(chat_id)
+                    if forward:
+                        bot.forward_message(forward, chat_id, message_id)
+                remove(filename)
+    except IndexError as e:
+        bot.send_message(chat_id, "No audio provided.")
+    except Exception:
+        bot.send_message(chat_id, "Invalid link.")
 
-
-@bot.callback_query_handler(lambda query: "https://" in query.data)
-def receive_video_in_playlist(query):
-    chat_id = query.from_user.id
-    audio_origin = pytube.YouTube(query.data)
-    audio = audio_origin.streams.filter(only_audio=True, file_extension="mp4")[0]
-    filename = audio.download()
-    with open(filename, "rb") as audio:
-        message_id = bot.send_audio(chat_id, audio).message_id
-        forward = get_forward(chat_id)
-        if forward:
-            bot.forward_message(forward, chat_id, message_id)
-    remove(filename)
-
-
-@bot.callback_query_handler(lambda query: query.data == "playlist_download_complete")
-def receive_playlist_download_complete(query):
-    chat_id = query.from_user.id
-    message_id = query.message.message_id
-    bot.delete_message(chat_id, message_id)
 
 
 bot.polling()
