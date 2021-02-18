@@ -6,6 +6,7 @@ import json
 from os import remove, rename
 from functions import *
 from moviepy.editor import AudioFileClip
+import requests
 
 TOKEN = config.TOKEN
 BOT_NAME = config.BOT_NAME
@@ -86,6 +87,7 @@ def check_link(message):
         if "watch" in link or "youtu.be" in link:
             audio_origin = pytube.YouTube(link)
             audio = audio_origin.streams.filter(only_audio=True, file_extension="mp4")[0]
+            thumbnails = requests.get(audio_origin.thumbnail_url.replace('maxresdefault.jpg', 'default.jpg')).content
             bot.reply_to(message, "You will soon receive the audio file.")
             filename = audio.download()
             
@@ -95,14 +97,17 @@ def check_link(message):
                 audio_file = AudioFileClip(filename)
                 per_duration = audio_file.duration / divide
                 media_group = []
+                media_group_files = []
                 for i in range(divide):
                     clip = audio_file.subclip(per_duration*i, per_duration*(i+1))
-                    sub_filename = filename + '_' + str(i)
+                    sub_filename = filename[:-4] + '_%d'%i + '.mp3'
                     clip.write_audiofile(sub_filename)
                     audio_clip = open(sub_filename, "rb")
-                    media_group.append(audio_clip)
+                    msg = bot.send_audio(config.storage, audio_clip, thumb=thumbnails)
+                    media_group_files.append(audio_clip)
+                    media_group.append(types.InputMediaAudio(msg.audio.file_id))
                     
-                message_id = bot.send_media_group(chat_id, [types.InputMediaAudio(audio_clip) for audio_clip in media_group])
+                message_id = bot.send_media_group(chat_id, media_group)
                 forward = get_forward(chat_id)
                 if forward:
                     bot.forward_message(forward, chat_id, message_id)
@@ -111,15 +116,17 @@ def check_link(message):
                     remove(f.name)
             else:
                 with open(filename, "rb") as audio:
-                    message_id = bot.send_audio(chat_id, audio).message_id
+                    msg = bot.send_audio(config.storage, audio, thumb=thumbnails)
+                    message_id = bot.send_audio(chat_id, msg.audio.file_id).message_id
                     forward = get_forward(chat_id)
                     if forward:
                         bot.forward_message(forward, chat_id, message_id)
                 remove(filename)
     except IndexError as e:
         bot.send_message(chat_id, "No audio provided.")
-    except Exception:
-        bot.send_message(chat_id, "Invalid link.")
+    except Exception as e:
+        print(e)
+        bot.send_message(chat_id, "Unexpected error.")
 
 
 

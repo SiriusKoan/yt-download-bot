@@ -40,7 +40,6 @@ def get_forward(chat_id):
     cur.execute("SELECT forward FROM users WHERE chat_id = ?", (chat_id,))
     forward = cur.fetchall()
     con.close()
-    print(forward[0][0])
     if forward[0][0] == "NO":
         return False
     return forward[0][0]
