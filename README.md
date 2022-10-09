@@ -1,10 +1,19 @@
 # YouTube Audio Download Bot
-<img src="https://img.shields.io/badge/status-running-green"></img>  
 
 [@YTAudioDownloaderBot](https://t.me/YTAudioDownloaderBot)  
-## setup
+
+## Setup
 1. Install necessary modules
-    `$ pip install -r requirements.txt`
+    ```
+    $ pip install -r requirements.txt
+    ```
 2. Place your Telegram bot token, Telegram bot name and YouTube search API key into `config.py`.
-## deploy
-1. `$ python3 main.py`
+## Deploy
+1. Build the image with your bot token
+    ```
+    $ docker build . -t {image name} --build-arg TOKEN='{your bot token}'
+    ```
+2. Run the container
+    ```
+    $ docker run --name ytbot -it -d --rm {image name}
+    ```

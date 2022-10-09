@@ -1,4 +1,2 @@
 pytelegrambotapi
-pytube3
-moviepy
-ffmpeg
+pytube
